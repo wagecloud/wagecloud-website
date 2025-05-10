@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import type { VM } from "@/components/vm/vm-dashboard"
+import { useEffect, useState } from "react"
+import type { PatchVM, VM } from "@/core/vm/vm.type"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -23,7 +23,6 @@ import {
 	Cpu,
 	MemoryStickIcon as Memory,
 	Calendar,
-	Network,
 	Server,
 	ArrowLeft,
 } from "lucide-react"
@@ -45,18 +44,22 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
+import { usePatchVM, useReadVM, useStartVM, useStopVM } from "@/core/vm/vm.query"
+import { useListOS } from "@/core/os/os.query"
+import { useReadOS } from "@/core/os/os.query"
+import { useListArch, useReadArch } from "@/core/arch/arch.query"
 
 interface VMDetailsProps {
-	vm: VM
+	vmId: string
 	onUpdate: (vm: VM) => void
 	onDelete: (id: string) => void
 	onConnect: () => void
 	onStatusChange: (status: "running" | "stopped" | "restarting") => void
-	onBack?: () => void
+	onBack: () => void
 }
 
 export function VMDetails({
-	vm,
+	vmId,
 	onUpdate,
 	onDelete,
 	onConnect,
@@ -64,8 +67,40 @@ export function VMDetails({
 	onBack,
 }: VMDetailsProps) {
 	const [isEditing, setIsEditing] = useState(false)
-	const [editedVM, setEditedVM] = useState<VM>(vm)
+	const { data: vm, refetch: refetchVM } = useReadVM(vmId)
+	const [editedVM, setEditedVM] = useState<PatchVM>(vm!)
+	const { data: os } = useReadOS(vm?.os_id)
+	const { data: arch } = useReadArch(vm?.arch_id)
+	const { data: oss } = useListOS({
+    page: 1,
+    limit: 100,
+  })
+	const { data: arches } = useListArch({
+    page: 1,
+    limit: 100,
+  })
+  const {mutateAsync: mutatePatchVM} = usePatchVM()
+  const {mutateAsync: mutateStartVM} = useStartVM()
+  const {mutateAsync: mutateStopVM} = useStopVM()
 
+  useEffect(() => {
+    if (vm) {
+      setEditedVM(vm)
+    }
+  }, [vm])
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refetchVM()
+    }, 3000)
+    return () => clearInterval(interval)
+  }, [])
+
+	if (!vm) {
+		return <div>VM not found</div>
+	}
+
+  
 	const getStatusColor = (status: string) => {
 		switch (status) {
 			case "running":
@@ -84,6 +119,19 @@ export function VMDetails({
 	}
 
 	const handleSave = () => {
+    // Create a patch object with only changed fields
+    const patch: Partial<PatchVM> = {}
+    Object.keys(editedVM).forEach((key) => {
+      const typedKey = key as keyof PatchVM
+      if (editedVM[typedKey] !== vm[typedKey]) {
+        patch[typedKey] = editedVM[typedKey]
+      }
+    })
+
+    mutatePatchVM({
+      id: vm.id,
+      patch
+    })
 		onUpdate(editedVM)
 		setIsEditing(false)
 	}
@@ -121,7 +169,10 @@ export function VMDetails({
 						<Button
 							variant="outline"
 							size="sm"
-							onClick={() => onStatusChange("running")}
+							onClick={() => {
+                onStatusChange("running")
+                mutateStartVM(vm.id)
+              }}
 							className="flex items-center gap-1"
 						>
 							<Play className="h-4 w-4" />
@@ -132,7 +183,10 @@ export function VMDetails({
 						<Button
 							variant="outline"
 							size="sm"
-							onClick={() => onStatusChange("stopped")}
+							onClick={() => {
+                onStatusChange("stopped")
+                mutateStopVM(vm.id)
+              }}
 							className="flex items-center gap-1"
 						>
 							<Square className="h-4 w-4" />
@@ -145,6 +199,7 @@ export function VMDetails({
 							size="sm"
 							onClick={() => onStatusChange("restarting")}
 							className="flex items-center gap-1"
+              disabled
 						>
 							<RefreshCw className="h-4 w-4" />
 							Restart
@@ -168,7 +223,6 @@ export function VMDetails({
 					<TabsList className="mb-4">
 						<TabsTrigger value="details">Details</TabsTrigger>
 						<TabsTrigger value="resources">Resources</TabsTrigger>
-						<TabsTrigger value="network">Network</TabsTrigger>
 					</TabsList>
 					<TabsContent value="details">
 						{isEditing ? (
@@ -184,24 +238,18 @@ export function VMDetails({
 								<div className="grid gap-2">
 									<Label htmlFor="os">Operating System</Label>
 									<Select
-										value={editedVM.os}
-										onValueChange={(value) => handleInputChange("os", value)}
+										value={editedVM.os_id}
+										onValueChange={(value) => handleInputChange("os_id", value)}
 									>
 										<SelectTrigger>
 											<SelectValue placeholder="Select OS" />
 										</SelectTrigger>
 										<SelectContent>
-											<SelectItem value="Ubuntu 22.04 LTS">
-												Ubuntu 22.04 LTS
-											</SelectItem>
-											<SelectItem value="Ubuntu 20.04 LTS">
-												Ubuntu 20.04 LTS
-											</SelectItem>
-											<SelectItem value="Debian 11">Debian 11</SelectItem>
-											<SelectItem value="CentOS 8">CentOS 8</SelectItem>
-											<SelectItem value="Windows Server 2022">
-												Windows Server 2022
-											</SelectItem>
+											{oss?.map((os) => (
+												<SelectItem key={os.id} value={os.id}>
+													{os.name}
+												</SelectItem>
+											))}
 										</SelectContent>
 									</Select>
 								</div>
@@ -214,12 +262,16 @@ export function VMDetails({
 										<span className="text-sm font-medium">
 											Operating System:
 										</span>
-										<span className="text-sm">{vm.os}</span>
+										<span className="text-sm">
+											{os?.name} {arch?.name}
+										</span>
 									</div>
 									<div className="flex items-center gap-2">
 										<Calendar className="h-4 w-4 text-muted-foreground" />
 										<span className="text-sm font-medium">Created:</span>
-										<span className="text-sm">{vm.createdAt}</span>
+										<span className="text-sm">
+											{new Date(vm.created_at).toLocaleString()}
+										</span>
 									</div>
 								</div>
 							</div>
@@ -249,11 +301,11 @@ export function VMDetails({
 									</Select>
 								</div>
 								<div className="grid gap-2">
-									<Label htmlFor="memory">Memory (GB)</Label>
+									<Label htmlFor="ram">Memory (GB)</Label>
 									<Select
-										value={editedVM.memory.toString()}
+										value={editedVM.ram.toString()}
 										onValueChange={(value) =>
-											handleInputChange("memory", Number.parseInt(value))
+											handleInputChange("ram", Number.parseInt(value))
 										}
 									>
 										<SelectTrigger>
@@ -302,36 +354,12 @@ export function VMDetails({
 									<div className="flex items-center gap-2">
 										<Memory className="h-4 w-4 text-muted-foreground" />
 										<span className="text-sm font-medium">Memory:</span>
-										<span className="text-sm">{vm.memory} GB</span>
+										<span className="text-sm">{Math.floor(vm.ram / 1024)} GB</span>
 									</div>
 									<div className="flex items-center gap-2">
 										<HardDrive className="h-4 w-4 text-muted-foreground" />
 										<span className="text-sm font-medium">Storage:</span>
 										<span className="text-sm">{vm.storage} GB</span>
-									</div>
-								</div>
-							</div>
-						)}
-					</TabsContent>
-					<TabsContent value="network">
-						{isEditing ? (
-							<div className="space-y-4">
-								<div className="grid gap-2">
-									<Label htmlFor="ip">IP Address</Label>
-									<Input
-										id="ip"
-										value={editedVM.ip}
-										onChange={(e) => handleInputChange("ip", e.target.value)}
-									/>
-								</div>
-							</div>
-						) : (
-							<div className="space-y-4">
-								<div className="grid grid-cols-1 gap-4">
-									<div className="flex items-center gap-2">
-										<Network className="h-4 w-4 text-muted-foreground" />
-										<span className="text-sm font-medium">IP Address:</span>
-										<span className="text-sm">{vm.ip}</span>
 									</div>
 								</div>
 							</div>
@@ -376,7 +404,7 @@ export function VMDetails({
 							<Button onClick={handleSave}>Save Changes</Button>
 						</>
 					) : (
-						<Button onClick={() => setIsEditing(true)}>Edit VM</Button>
+						<Button disabled onClick={() => setIsEditing(true)}>Edit VM</Button>
 					)}
 				</div>
 			</CardFooter>

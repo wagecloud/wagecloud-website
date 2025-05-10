@@ -6,8 +6,13 @@ export type VM = {
 	arch_id: string
 	name: string
 	status: "running" | "stopped" | "restarting"
+	os: string
 	cpu: number
 	ram: number
 	storage: number
-	createdAt: string
+	created_at: string
 }
+
+export type CreateVM = Omit<VM, "id" | "created_at" | "account_id" | "network_id">
+
+export type PatchVM = Partial<Omit<VM, "id" | "created_at" | "account_id" | "network_id">>

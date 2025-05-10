@@ -1,97 +1,66 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { VMList } from "@/components/vm/vm-list"
 import { VMDetails } from "@/components/vm/vm-details"
 import { CreateVMForm } from "@/components/vm/create-vm-form"
 import { SSHTerminal } from "@/components/ssh-terminal"
 import { Sidebar } from "@/components/sidebar"
 import { useMobile } from "@/hooks/use-mobile"
-
-export type VM = {
-	id: string
-	name: string
-	status: "running" | "stopped" | "restarting"
-	os: string
-	ip: string
-	cpu: number
-	memory: number
-	storage: number
-	createdAt: string
-}
+import {
+	useListVM,
+	useDeleteVM,
+	usePatchVM,
+	useCreateVM,
+} from "@/core/vm/vm.query"
+import { CreateVM, PatchVM } from "@/core/vm/vm.type"
+import { AlertModalProvider } from "../modal/alert/alert-modal-provider"
 
 export type View = "dashboard" | "list" | "details" | "create" | "ssh"
 
 export function VMDashboardLayout() {
 	const isMobile = useMobile()
-	const [vms, setVMs] = useState<VM[]>([
-		{
-			id: "vm-1",
-			name: "Production Server",
-			status: "running",
-			os: "Ubuntu 22.04 LTS",
-			ip: "192.168.1.101",
-			cpu: 4,
-			memory: 8,
-			storage: 100,
-			createdAt: "2023-10-15",
-		},
-		{
-			id: "vm-2",
-			name: "Development Server",
-			status: "running",
-			os: "Debian 11",
-			ip: "192.168.1.102",
-			cpu: 2,
-			memory: 4,
-			storage: 50,
-			createdAt: "2023-11-20",
-		},
-		{
-			id: "vm-3",
-			name: "Test Environment",
-			status: "stopped",
-			os: "CentOS 8",
-			ip: "192.168.1.103",
-			cpu: 2,
-			memory: 4,
-			storage: 40,
-			createdAt: "2024-01-05",
-		},
-	])
+	const { data: vms = [], refetch: refetchVM } = useListVM({
+		page: 1,
+		limit: 10,
+	})
+	const { mutateAsync: mutateCreateVM } = useCreateVM()
+	const { mutateAsync: mutatePatchVM } = usePatchVM()
+	const { mutateAsync: mutateDeleteVM } = useDeleteVM()
 
-	const [selectedVM, setSelectedVM] = useState<VM | null>(null)
+	const [selectedId, setSelectedId] = useState<string>()
 	const [view, setView] = useState<View>("dashboard")
 
-	const handleCreateVM = (newVM: Omit<VM, "id" | "createdAt">) => {
-		const vm: VM = {
-			...newVM,
-			id: `vm-${vms.length + 1}`,
-			createdAt: new Date().toISOString().split("T")[0],
-		}
-		setVMs([...vms, vm])
+	const handleCreateVM = async (newVM: CreateVM) => {
+		await mutateCreateVM(newVM)
 		setView("list")
 	}
 
-	const handleUpdateVM = (updatedVM: VM) => {
-		setVMs(vms.map((vm) => (vm.id === updatedVM.id ? updatedVM : vm)))
-		setSelectedVM(updatedVM)
+	const handlePatchVM = async (id: string, patchVM: PatchVM) => {
+		await mutatePatchVM({ id, patch: patchVM })
 		setView("details")
 	}
 
-	const handleDeleteVM = (id: string) => {
-		setVMs(vms.filter((vm) => vm.id !== id))
-		setSelectedVM(null)
+	const handleDeleteVM = async (id: string) => {
+		await mutateDeleteVM(id)
+		setSelectedId(undefined)
 		setView("list")
 	}
 
-	const handleStatusChange = (
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refetchVM()
+    }, 3000)
+    return () => clearInterval(interval)
+  }, [])
+
+	const handleStatusChange = async (
 		id: string,
 		status: "running" | "stopped" | "restarting"
 	) => {
-		setVMs(vms.map((vm) => (vm.id === id ? { ...vm, status } : vm)))
-		if (selectedVM && selectedVM.id === id) {
-			setSelectedVM({ ...selectedVM, status })
+		const vmToUpdate = vms.find((vm) => vm.id === id)
+		if (vmToUpdate) {
+			await mutatePatchVM({ id, patch: { status } })
 		}
 	}
 
@@ -102,8 +71,12 @@ export function VMDashboardLayout() {
 					<VMList
 						vms={vms}
 						onSelect={(vm) => {
-							setSelectedVM(vm)
-							setView("details")
+							if (vm.id === "new") {
+								setView("create")
+							} else {
+								setSelectedId(vm.id)
+								setView("details")
+							}
 						}}
 						onStatusChange={handleStatusChange}
 						showDashboard
@@ -114,22 +87,24 @@ export function VMDashboardLayout() {
 					<VMList
 						vms={vms}
 						onSelect={(vm) => {
-							setSelectedVM(vm)
-							setView("details")
+              if (vm.id === "new") {
+                setView("create")
+              } else {
+                setSelectedId(vm.id)
+                setView("details")
+              }
 						}}
 						onStatusChange={handleStatusChange}
 					/>
 				)
 			case "details":
-				return selectedVM ? (
+				return selectedId ? (
 					<VMDetails
-						vm={selectedVM}
-						onUpdate={handleUpdateVM}
+						vmId={selectedId}
+						onUpdate={(vm) => handlePatchVM(vm.id, vm)}
 						onDelete={handleDeleteVM}
 						onConnect={() => setView("ssh")}
-						onStatusChange={(status) =>
-							handleStatusChange(selectedVM.id, status)
-						}
+						onStatusChange={(status) => handleStatusChange(selectedId, status)}
 						onBack={() => setView("list")}
 					/>
 				) : (
@@ -143,8 +118,8 @@ export function VMDashboardLayout() {
 					/>
 				)
 			case "ssh":
-				return selectedVM ? (
-					<SSHTerminal vm={selectedVM} onClose={() => setView("details")} />
+				return selectedId ? (
+					<SSHTerminal vmId={selectedId} onClose={() => setView("details")} />
 				) : (
 					<div>No VM selected</div>
 				)
@@ -164,7 +139,7 @@ export function VMDashboardLayout() {
 			/>
 			<div className="flex-1 flex flex-col overflow-hidden">
 				<main className="flex-1 overflow-y-auto p-4 md:p-6">
-					{renderContent()}
+					<AlertModalProvider>{renderContent()}</AlertModalProvider>
 				</main>
 			</div>
 		</div>

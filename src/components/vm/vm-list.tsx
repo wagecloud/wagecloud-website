@@ -1,6 +1,6 @@
 "use client"
 
-import type { VM } from "@/components/vm/vm-dashboard-layout"
+import type { VM } from "@/core/vm/vm.type"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -21,8 +21,9 @@ import {
 	Server,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { VMStatusCard } from "@/components/vm/vm-status-card"
+import { useStartVM, useStopVM } from "@/core/vm/vm.query"
 
 interface VMListProps {
 	vms: VM[]
@@ -37,10 +38,12 @@ interface VMListProps {
 export function VMList({
 	vms,
 	onSelect,
-	onStatusChange,
 	showDashboard = false,
+	onStatusChange,
 }: VMListProps) {
 	const [searchTerm, setSearchTerm] = useState("")
+  const {mutateAsync: mutateStartVM} = useStartVM()
+  const {mutateAsync: mutateStopVM} = useStopVM()
 
 	const getStatusColor = (status: string) => {
 		switch (status) {
@@ -58,8 +61,7 @@ export function VMList({
 	const filteredVMs = vms.filter(
 		(vm) =>
 			vm.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-			vm.os.toLowerCase().includes(searchTerm.toLowerCase()) ||
-			vm.ip.includes(searchTerm)
+			vm.os.toLowerCase().includes(searchTerm.toLowerCase())
 	)
 
 	const runningVMs = vms.filter((vm) => vm.status === "running").length
@@ -69,65 +71,60 @@ export function VMList({
 	return (
 		<div className="space-y-6">
 			{showDashboard && (
-				<>
-					<div className="flex items-center justify-between">
-						<h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-						<Button className="flex items-center gap-2">
-							<PlusCircle className="h-4 w-4" />
-							Create VM
-						</Button>
-					</div>
-
-					<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-						<VMStatusCard
-							title="Total VMs"
-							value={vms.length.toString()}
-							description="Total virtual machines"
-							icon={<Server className="h-4 w-4 text-muted-foreground" />}
-						/>
-						<VMStatusCard
-							title="Running"
-							value={runningVMs.toString()}
-							description="Active virtual machines"
-							icon={<Play className="h-4 w-4 text-green-500" />}
-							trend={`${Math.round((runningVMs / vms.length) * 100)}% of total`}
-							trendType="positive"
-						/>
-						<VMStatusCard
-							title="Stopped"
-							value={stoppedVMs.toString()}
-							description="Inactive virtual machines"
-							icon={<Square className="h-4 w-4 text-red-500" />}
-							trend={`${Math.round((stoppedVMs / vms.length) * 100)}% of total`}
-							trendType="negative"
-						/>
-						<VMStatusCard
-							title="Restarting"
-							value={restartingVMs.toString()}
-							description="VMs in transition"
-							icon={<RefreshCw className="h-4 w-4 text-yellow-500" />}
-							trend={`${Math.round(
-								(restartingVMs / vms.length) * 100
-							)}% of total`}
-							trendType="warning"
-						/>
-					</div>
-				</>
+				<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+					<VMStatusCard
+						title="Total VMs"
+						value={vms.length.toString()}
+						description="Total virtual machines"
+						icon={<Server className="h-4 w-4 text-muted-foreground" />}
+					/>
+					<VMStatusCard
+						title="Running"
+						value={runningVMs.toString()}
+						description="Active virtual machines"
+						icon={<Server className="h-4 w-4 text-green-500" />}
+						trend="+2"
+						trendType="positive"
+					/>
+					<VMStatusCard
+						title="Stopped"
+						value={stoppedVMs.toString()}
+						description="Inactive virtual machines"
+						icon={<Server className="h-4 w-4 text-red-500" />}
+						trend="-1"
+						trendType="negative"
+					/>
+					<VMStatusCard
+						title="Restarting"
+						value={restartingVMs.toString()}
+						description="VMs in transition"
+						icon={<Server className="h-4 w-4 text-yellow-500" />}
+					/>
+				</div>
 			)}
 
 			<Card>
 				<CardHeader className="flex flex-row items-center justify-between">
-					<CardTitle>
-						{showDashboard ? "Recent Virtual Machines" : "Virtual Machines"}
-					</CardTitle>
-					<div className="relative w-64">
-						<Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-						<Input
-							placeholder="Search VMs..."
-							className="pl-8"
-							value={searchTerm}
-							onChange={(e) => setSearchTerm(e.target.value)}
-						/>
+					<CardTitle>Virtual Machines</CardTitle>
+					<div className="flex items-center gap-2">
+						<div className="relative">
+							<Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+							<Input
+								placeholder="Search VMs..."
+								value={searchTerm}
+								onChange={(e) => setSearchTerm(e.target.value)}
+								className="pl-8"
+							/>
+						</div>
+						<Button
+							onClick={() => {
+								onSelect({ id: "new" } as VM)
+							}}
+							className="flex items-center gap-1"
+						>
+							<PlusCircle className="h-4 w-4" />
+							New VM
+						</Button>
 					</div>
 				</CardHeader>
 				<CardContent>
@@ -137,14 +134,13 @@ export function VMList({
 								<TableRow>
 									<TableHead>Name</TableHead>
 									<TableHead>Status</TableHead>
-									<TableHead className="hidden md:table-cell">OS</TableHead>
 									<TableHead className="hidden md:table-cell">
-										IP Address
+										Operating System
 									</TableHead>
 									<TableHead className="hidden lg:table-cell">
 										Resources
 									</TableHead>
-									<TableHead>Actions</TableHead>
+									<TableHead className="text-right">Actions</TableHead>
 								</TableRow>
 							</TableHeader>
 							<TableBody>
@@ -168,81 +164,78 @@ export function VMList({
 										<TableCell className="hidden md:table-cell">
 											{vm.os}
 										</TableCell>
-										<TableCell className="hidden md:table-cell">
-											{vm.ip}
-										</TableCell>
 										<TableCell className="hidden lg:table-cell">
 											<div className="flex flex-col gap-1 text-xs">
 												<div>CPU: {vm.cpu} cores</div>
-												<div>RAM: {vm.memory} GB</div>
+												<div>RAM: {Math.floor(vm.ram / 1024)} GB</div>
 												<div>Storage: {vm.storage} GB</div>
 											</div>
 										</TableCell>
-										<TableCell>
-											<div
-												className="flex items-center gap-2"
-												onClick={(e) => e.stopPropagation()}
-											>
+										<TableCell className="text-right">
+											<div className="flex justify-end gap-2">
 												{vm.status !== "running" && (
 													<Button
 														variant="outline"
-														size="icon"
-														onClick={() => onStatusChange(vm.id, "running")}
-														title="Start VM"
+														size="sm"
+														onClick={async (e) => {
+															e.stopPropagation()
+															mutateStartVM(vm.id)
+															onStatusChange(vm.id, "running")
+														}}
+														className="flex items-center gap-1"
 													>
 														<Play className="h-4 w-4" />
+														Start
 													</Button>
 												)}
 												{vm.status !== "stopped" && (
 													<Button
 														variant="outline"
-														size="icon"
-														onClick={() => onStatusChange(vm.id, "stopped")}
-														title="Stop VM"
+														size="sm"
+														onClick={async (e) => {
+															e.stopPropagation()
+															mutateStopVM(vm.id)
+															onStatusChange(vm.id, "stopped")
+														}}
+														className="flex items-center gap-1"
 													>
 														<Square className="h-4 w-4" />
+														Stop
 													</Button>
 												)}
 												{vm.status !== "restarting" && (
 													<Button
 														variant="outline"
-														size="icon"
-														onClick={() => onStatusChange(vm.id, "restarting")}
-														title="Restart VM"
+														size="sm"
+														onClick={(e) => {
+															e.stopPropagation()
+															onStatusChange(vm.id, "restarting")
+														}}
+														className="flex items-center gap-1"
+                            disabled
 													>
 														<RefreshCw className="h-4 w-4" />
+														Restart
 													</Button>
 												)}
 												{vm.status === "running" && (
 													<Button
-														variant="outline"
-														size="icon"
+														variant="default"
+														size="sm"
 														onClick={(e) => {
 															e.stopPropagation()
 															onSelect(vm)
-															// We'll handle the SSH connection in the parent component
 														}}
-														title="SSH Connect"
+														className="flex items-center gap-1"
 													>
 														<Terminal className="h-4 w-4" />
+														SSH
 													</Button>
 												)}
 											</div>
 										</TableCell>
 									</TableRow>
 								))}
-								{filteredVMs.length === 0 && (
-									<TableRow>
-										<TableCell
-											colSpan={6}
-											className="text-center py-6 text-muted-foreground"
-										>
-											{searchTerm
-												? "No virtual machines match your search"
-												: "No virtual machines found. Create one to get started."}
-										</TableCell>
-									</TableRow>
-								)}
 							</TableBody>
 						</Table>
 					</div>

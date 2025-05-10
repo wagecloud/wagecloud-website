@@ -1,9 +1,7 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
-import type { VM } from "@/components/vm/vm-dashboard"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -22,31 +20,83 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useListOS } from "@/core/os/os.query"
+import { useListArch } from "@/core/arch/arch.query"
+import { Textarea } from "@/components/ui/textarea"
 
 interface CreateVMFormProps {
-	onSubmit: (vm: Omit<VM, "id" | "createdAt">) => void
+	onSubmit: (vm: any) => void
 	onCancel: () => void
 }
 
 export function CreateVMForm({ onSubmit, onCancel }: CreateVMFormProps) {
-	const [newVM, setNewVM] = useState<Omit<VM, "id" | "createdAt">>({
-		name: "",
-		status: "stopped",
-		os: "Ubuntu 22.04 LTS",
-		ip: "192.168.1.100",
-		cpu: 2,
-		memory: 4,
-		storage: 50,
+	const [newVM, setNewVM] = useState({
+		userdata: {
+			name: "",
+			"ssh-authorized-keys": [] as string[],
+			password: "",
+		},
+		metadata: {
+			"local-hostname": "",
+		},
+		spec: {
+			os_id: "",
+			arch_id: "",
+			memory: 1024, // 1GB default
+			cpu: 1,
+			storage: 20, // 20GB default
+		},
 	})
 
-	const handleInputChange = (
-		field: keyof Omit<VM, "id" | "createdAt">,
-		value: any
-	) => {
-		setNewVM({ ...newVM, [field]: value })
+	const { data: oss } = useListOS({
+		page: 1,
+		limit: 100,
+	})
+
+	const { data: archs } = useListArch({
+		page: 1,
+		limit: 100,
+	})
+
+	const isFormValid = () => {
+		const { userdata, metadata, spec } = newVM
+		return (
+			userdata.name.length >= 1 &&
+			userdata.name.length <= 255 &&
+			userdata.password.length >= 8 &&
+			userdata.password.length <= 72 &&
+			metadata["local-hostname"].length > 0 &&
+			spec.os_id.length > 0 &&
+			spec.arch_id.length > 0 &&
+			spec.memory >= 512 &&
+			spec.memory <= 262144 &&
+			spec.cpu >= 1 &&
+			spec.cpu <= 64 &&
+			spec.storage >= 10 &&
+			spec.storage <= 2048
+		)
 	}
 
-	const handleSubmit = (e: React.FormEvent) => {
+	const handleInputChange = (
+		section: "userdata" | "metadata" | "spec",
+		field: string,
+		value: any
+	) => {
+		setNewVM((prev) => ({
+			...prev,
+			[section]: {
+				...prev[section],
+				[field]: value,
+			},
+		}))
+	}
+
+	const handleSSHKeysChange = (value: string) => {
+		const keys = value.split("\n").filter((key) => key.trim().length > 0)
+		handleInputChange("userdata", "ssh-authorized-keys", keys)
+	}
+
+	const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault()
 		onSubmit(newVM)
 	}
@@ -62,7 +112,7 @@ export function CreateVMForm({ onSubmit, onCancel }: CreateVMFormProps) {
 						<TabsList className="mb-4">
 							<TabsTrigger value="basic">Basic Settings</TabsTrigger>
 							<TabsTrigger value="resources">Resources</TabsTrigger>
-							<TabsTrigger value="network">Network</TabsTrigger>
+							<TabsTrigger value="security">Security</TabsTrigger>
 						</TabsList>
 						<TabsContent value="basic">
 							<div className="space-y-4">
@@ -70,34 +120,59 @@ export function CreateVMForm({ onSubmit, onCancel }: CreateVMFormProps) {
 									<Label htmlFor="name">VM Name</Label>
 									<Input
 										id="name"
-										value={newVM.name}
-										onChange={(e) => handleInputChange("name", e.target.value)}
+										value={newVM.userdata.name}
+										onChange={(e) => handleInputChange("userdata", "name", e.target.value)}
 										placeholder="My Virtual Machine"
+										required
+										minLength={1}
+										maxLength={255}
+									/>
+								</div>
+								<div className="grid gap-2">
+									<Label htmlFor="hostname">Hostname</Label>
+									<Input
+										id="hostname"
+										value={newVM.metadata["local-hostname"]}
+										onChange={(e) => handleInputChange("metadata", "local-hostname", e.target.value)}
+										placeholder="my-vm"
 										required
 									/>
 								</div>
 								<div className="grid gap-2">
 									<Label htmlFor="os">Operating System</Label>
 									<Select
-										value={newVM.os}
-										onValueChange={(value) => handleInputChange("os", value)}
+										value={newVM.spec.os_id}
+										onValueChange={(value) => handleInputChange("spec", "os_id", value)}
 										required
 									>
 										<SelectTrigger>
 											<SelectValue placeholder="Select OS" />
 										</SelectTrigger>
 										<SelectContent>
-											<SelectItem value="Ubuntu 22.04 LTS">
-												Ubuntu 22.04 LTS
-											</SelectItem>
-											<SelectItem value="Ubuntu 20.04 LTS">
-												Ubuntu 20.04 LTS
-											</SelectItem>
-											<SelectItem value="Debian 11">Debian 11</SelectItem>
-											<SelectItem value="CentOS 8">CentOS 8</SelectItem>
-											<SelectItem value="Windows Server 2022">
-												Windows Server 2022
-											</SelectItem>
+											{oss?.map((os) => (
+												<SelectItem key={os.id} value={os.id}>
+													{os.name}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+								</div>
+								<div className="grid gap-2">
+									<Label htmlFor="arch">Architecture</Label>
+									<Select
+										value={newVM.spec.arch_id}
+										onValueChange={(value) => handleInputChange("spec", "arch_id", value)}
+										required
+									>
+										<SelectTrigger>
+											<SelectValue placeholder="Select Architecture" />
+										</SelectTrigger>
+										<SelectContent>
+											{archs?.map((arch) => (
+												<SelectItem key={arch.id} value={arch.id}>
+													{arch.name}
+												</SelectItem>
+											))}
 										</SelectContent>
 									</Select>
 								</div>
@@ -108,76 +183,87 @@ export function CreateVMForm({ onSubmit, onCancel }: CreateVMFormProps) {
 								<div className="grid gap-2">
 									<Label htmlFor="cpu">CPU Cores</Label>
 									<Select
-										value={newVM.cpu.toString()}
+										value={newVM.spec.cpu.toString()}
 										onValueChange={(value) =>
-											handleInputChange("cpu", Number.parseInt(value))
+											handleInputChange("spec", "cpu", Number.parseInt(value))
 										}
 									>
 										<SelectTrigger>
 											<SelectValue placeholder="Select CPU cores" />
 										</SelectTrigger>
 										<SelectContent>
-											<SelectItem value="1">1 Core</SelectItem>
-											<SelectItem value="2">2 Cores</SelectItem>
-											<SelectItem value="4">4 Cores</SelectItem>
-											<SelectItem value="8">8 Cores</SelectItem>
-											<SelectItem value="16">16 Cores</SelectItem>
+											{[1, 2, 4, 8, 16, 32, 64].map((cores) => (
+												<SelectItem key={cores} value={cores.toString()}>
+													{cores} {cores === 1 ? "Core" : "Cores"}
+												</SelectItem>
+											))}
 										</SelectContent>
 									</Select>
 								</div>
 								<div className="grid gap-2">
-									<Label htmlFor="memory">Memory (GB)</Label>
+									<Label htmlFor="memory">Memory (MB)</Label>
 									<Select
-										value={newVM.memory.toString()}
+										value={newVM.spec.memory.toString()}
 										onValueChange={(value) =>
-											handleInputChange("memory", Number.parseInt(value))
+											handleInputChange("spec", "memory", Number.parseInt(value))
 										}
 									>
 										<SelectTrigger>
 											<SelectValue placeholder="Select memory" />
 										</SelectTrigger>
 										<SelectContent>
-											<SelectItem value="1">1 GB</SelectItem>
-											<SelectItem value="2">2 GB</SelectItem>
-											<SelectItem value="4">4 GB</SelectItem>
-											<SelectItem value="8">8 GB</SelectItem>
-											<SelectItem value="16">16 GB</SelectItem>
-											<SelectItem value="32">32 GB</SelectItem>
+											{[512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144].map((mb) => (
+												<SelectItem key={mb} value={mb.toString()}>
+													{mb} MB
+												</SelectItem>
+											))}
 										</SelectContent>
 									</Select>
 								</div>
 								<div className="grid gap-2">
 									<Label htmlFor="storage">Storage (GB)</Label>
 									<Select
-										value={newVM.storage.toString()}
+										value={newVM.spec.storage.toString()}
 										onValueChange={(value) =>
-											handleInputChange("storage", Number.parseInt(value))
+											handleInputChange("spec", "storage", Number.parseInt(value))
 										}
 									>
 										<SelectTrigger>
 											<SelectValue placeholder="Select storage" />
 										</SelectTrigger>
 										<SelectContent>
-											<SelectItem value="20">20 GB</SelectItem>
-											<SelectItem value="40">40 GB</SelectItem>
-											<SelectItem value="50">50 GB</SelectItem>
-											<SelectItem value="100">100 GB</SelectItem>
-											<SelectItem value="200">200 GB</SelectItem>
-											<SelectItem value="500">500 GB</SelectItem>
+											{[10, 20, 40, 50, 100, 200, 500, 1000, 2048].map((gb) => (
+												<SelectItem key={gb} value={gb.toString()}>
+													{gb} GB
+												</SelectItem>
+											))}
 										</SelectContent>
 									</Select>
 								</div>
 							</div>
 						</TabsContent>
-						<TabsContent value="network">
+						<TabsContent value="security">
 							<div className="space-y-4">
 								<div className="grid gap-2">
-									<Label htmlFor="ip">IP Address</Label>
+									<Label htmlFor="password">Password</Label>
 									<Input
-										id="ip"
-										value={newVM.ip}
-										onChange={(e) => handleInputChange("ip", e.target.value)}
-										placeholder="192.168.1.100"
+										id="password"
+										type="password"
+										value={newVM.userdata.password}
+										onChange={(e) => handleInputChange("userdata", "password", e.target.value)}
+										required
+										minLength={8}
+										maxLength={72}
+									/>
+								</div>
+								<div className="grid gap-2">
+									<Label htmlFor="ssh-keys">SSH Authorized Keys (one per line)</Label>
+									<Textarea
+										id="ssh-keys"
+										value={newVM.userdata["ssh-authorized-keys"].join("\n")}
+										onChange={(e) => handleSSHKeysChange(e.target.value)}
+										placeholder="ssh-rsa AAAA..."
+										className="h-32"
 									/>
 								</div>
 							</div>
@@ -188,7 +274,9 @@ export function CreateVMForm({ onSubmit, onCancel }: CreateVMFormProps) {
 					<Button variant="outline" type="button" onClick={onCancel}>
 						Cancel
 					</Button>
-					<Button type="submit">Create VM</Button>
+					<Button type="submit" disabled={!isFormValid()}>
+						Create VM
+					</Button>
 				</CardFooter>
 			</form>
 		</Card>
