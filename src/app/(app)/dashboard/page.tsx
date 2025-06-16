@@ -5,16 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Table,
   TableBody,
-  TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
 import {
-  Play,
-  Square,
-  RefreshCw,
-  Terminal,
   PlusCircle,
   Search,
   Server,
@@ -22,52 +17,40 @@ import {
 import { Input } from '@/components/ui/input'
 import { useState } from 'react'
 import { InstanceStatusCard } from '@/app/(app)/components/instance-status-card'
-import { useListVM, useStartVM, useStopVM } from '@/core/vm/vm.query'
+import { useListInstances } from '@/core/instance/instance.query'
+import { useInfiniteScroll } from '@/hooks/use-infinite-scroll'
+import { InstanceCard } from '../components/instance-card'
+import { InstanceStatus } from '@/core/instance/instance.type'
 
 export default function MachinesPage() {
-  const { data: vms = [] } = useListVM({
+  const [search, setSearch] = useState('')
+  const infiniteInstances = useListInstances({
     page: 1,
     limit: 10,
+    name: search.length > 0 ? search : undefined,
   })
-  const [searchTerm, setSearchTerm] = useState('')
-  const { mutateAsync: mutateStartVM } = useStartVM()
-  const { mutateAsync: mutateStopVM } = useStopVM()
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'running':
-        return 'bg-green-500'
-      case 'stopped':
-        return 'bg-red-500'
-      case 'restarting':
-        return 'bg-yellow-500'
-      default:
-        return 'bg-gray-500'
-    }
-  }
+  const {
+    ref: refTriggerScroll,
+    items: instances,
+  } = useInfiniteScroll(infiniteInstances, 10)
 
-  const filteredVMs = vms.filter(
-    vm =>
-      vm.name.toLowerCase().includes(searchTerm.toLowerCase())
-      || vm.os.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
-
-  const runningVMs = vms.filter(vm => vm.status === 'running').length
-  const stoppedVMs = vms.filter(vm => vm.status === 'stopped').length
-  const restartingVMs = vms.filter(vm => vm.status === 'restarting').length
+  const runningInstances = instances.filter(instance => instance.status === InstanceStatus.RUNNING).length
+  const stoppedInstances = instances.filter(instance => instance.status === InstanceStatus.STOPPED).length
+  const restartingInstances = instances.filter(instance => instance.status === InstanceStatus.RESTARTING).length
 
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <InstanceStatusCard
           title="Total VMs"
-          value={vms.length.toString()}
+          value={instances.length.toString()}
           description="Total virtual machines"
           icon={<Server className="h-4 w-4 text-muted-foreground" />}
         />
         <InstanceStatusCard
           title="Running"
-          value={runningVMs.toString()}
+          value={runningInstances.toString()}
           description="Active virtual machines"
           icon={<Server className="h-4 w-4 text-green-500" />}
           trend="+2"
@@ -75,7 +58,7 @@ export default function MachinesPage() {
         />
         <InstanceStatusCard
           title="Stopped"
-          value={stoppedVMs.toString()}
+          value={stoppedInstances.toString()}
           description="Inactive virtual machines"
           icon={<Server className="h-4 w-4 text-red-500" />}
           trend="-1"
@@ -83,7 +66,7 @@ export default function MachinesPage() {
         />
         <InstanceStatusCard
           title="Restarting"
-          value={restartingVMs.toString()}
+          value={restartingInstances.toString()}
           description="VMs in transition"
           icon={<Server className="h-4 w-4 text-yellow-500" />}
         />
@@ -96,15 +79,15 @@ export default function MachinesPage() {
             <div className="relative">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search VMs..."
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
+                placeholder="Search instances..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
                 className="pl-8"
               />
             </div>
             <Button className="flex items-center gap-1">
               <PlusCircle className="h-4 w-4" />
-              New VM
+              New Instance
             </Button>
           </div>
         </CardHeader>
@@ -125,109 +108,23 @@ export default function MachinesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredVMs.map(vm => (
-                  <TableRow
-                    key={vm.id}
-                    className="cursor-pointer hover:bg-muted/50"
+                {instances.map(instance => (
+                  <InstanceCard
+                    key={instance.id}
+                    id={instance.id}
+                    name={instance.name}
+                    status={instance.status}
+                    os_id={instance.os_id}
+                    arch_id={instance.arch_id}
+                    cpu={instance.cpu}
+                    ram={instance.ram}
+                    storage={instance.storage}
                   >
-                    <TableCell className="font-medium">{vm.name}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <div
-                          className={`h-2 w-2 rounded-full ${getStatusColor(
-                            vm.status,
-                          )}`}
-                        />
-                        <span className="capitalize">{vm.status}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      {vm.os}
-                    </TableCell>
-                    <TableCell className="hidden lg:table-cell">
-                      <div className="flex flex-col gap-1 text-xs">
-                        <div>
-                          CPU:
-                          {vm.cpu}
-                          {' '}
-                          cores
-                        </div>
-                        <div>
-                          RAM:
-                          {Math.floor(vm.ram / 1024)}
-                          {' '}
-                          GB
-                        </div>
-                        <div>
-                          Storage:
-                          {vm.storage}
-                          {' '}
-                          GB
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        {vm.status !== 'running' && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={async (e) => {
-                              e.stopPropagation()
-                              mutateStartVM(vm.id)
-                            }}
-                            className="flex items-center gap-1"
-                          >
-                            <Play className="h-4 w-4" />
-                            Start
-                          </Button>
-                        )}
-                        {vm.status !== 'stopped' && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={async (e) => {
-                              e.stopPropagation()
-                              mutateStopVM(vm.id)
-                            }}
-                            className="flex items-center gap-1"
-                          >
-                            <Square className="h-4 w-4" />
-                            Stop
-                          </Button>
-                        )}
-                        {vm.status !== 'restarting' && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                            }}
-                            className="flex items-center gap-1"
-                            disabled
-                          >
-                            <RefreshCw className="h-4 w-4" />
-                            Restart
-                          </Button>
-                        )}
-                        {vm.status === 'running' && (
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                            }}
-                            className="flex items-center gap-1"
-                          >
-                            <Terminal className="h-4 w-4" />
-                            SSH
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                  </InstanceCard>
                 ))}
+                <TableRow ref={refTriggerScroll} />
               </TableBody>
+
             </Table>
           </div>
         </CardContent>
