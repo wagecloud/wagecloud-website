@@ -1,4 +1,4 @@
-import { type TErrorResponse } from '@/core/error/error.type'
+import { SuccessPaginationRes, SuccessResponse, TErrorResponse } from './response.type'
 
 const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/api'
 
@@ -10,10 +10,10 @@ if (process.env.NODE_ENV === 'development') {
   headers.Authorization = `Bearer ${process.env.NEXT_PUBLIC_TOKEN}`
 }
 
-export async function customFetch(
+async function customFetch<TResponse = any>(
   url: string,
   options: RequestInit = {},
-): Promise<Response> {
+) {
   const resolvedUrl = resolveUrl(baseUrl, url)
   const response = await fetch(resolvedUrl, {
     ...options,
@@ -22,28 +22,28 @@ export async function customFetch(
       ...options.headers,
     },
   })
-  if (!response.ok) {
-    if (response.status === 500) {
-      const res = (await response.json()) as TErrorResponse
-      throw new Error(res.message)
-    }
 
-    throw new Error(
-      `HTTP error! Status: ${response.status}, Status Text: ${response.statusText}`,
-    )
+  if (!response.ok) {
+    const res = (await response.json()) as TErrorResponse
+    throw new Error(res.error.message)
   }
 
-  return response
+  return response.json() as Promise<TResponse>
 }
 
-export async function customFetchJson<SuccessResponse = any>(
+export async function customFetchStandard<Data = any>(
   url: string,
   options: RequestInit = {},
-): Promise<SuccessResponse> {
-  const resolvedUrl = resolveUrl(baseUrl, url)
-  return customFetch(resolvedUrl, options).then(async res =>
-    res.json(),
-  ) as Promise<SuccessResponse>
+) {
+  const response = await customFetch<SuccessResponse<Data>>(url, options)
+  return response.data
+}
+
+export async function customFetchPagination<Data = any>(
+  url: string,
+  options: RequestInit = {},
+) {
+  return customFetch<SuccessPaginationRes<Data>>(url, options)
 }
 
 // Helper function to resolve URLs
