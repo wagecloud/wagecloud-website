@@ -11,7 +11,7 @@ interface FooterProps {
   footerLinks: FooterLink[]
 }
 
-export function Footer({ footerLinks }: FooterProps) {
+export function Footer({ footerLinks }: Readonly<FooterProps>) {
   return (
     <footer className="pt-16 pb-8">
       <div className="flex justify-between px-8 mb-16">
@@ -38,7 +38,7 @@ export function Footer({ footerLinks }: FooterProps) {
               {column.links.map((link, idx) => (
                 <a
                   key={idx}
-                  href="#"
+                  href="/link"
                   className="font-light text-white text-[17px]"
                 >
                   {link}
