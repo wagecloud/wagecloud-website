@@ -12,7 +12,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { X } from 'lucide-react'
-import { useReadVM } from '@/core/vm/vm.query'
+import { useReadVM } from '@/core/instance/instance.query'
 import { useAlert } from '../modal/alert/alert-modal-provider'
 
 interface SSHTerminalProps {
