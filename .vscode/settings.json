@@ -1,0 +1,6 @@
+{
+  "sonarlint.connectedMode.project": {
+    "connectionId": "http-localhost-9000",
+    "projectKey": "wagecloud_wagecloud-website_c392fe74-8ef1-48c0-8103-142272feef08"
+  }
+}
