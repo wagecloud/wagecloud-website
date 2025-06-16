@@ -14,7 +14,7 @@ import {
   LogOut,
 } from 'lucide-react'
 import { useMobile } from '@/hooks/use-mobile'
-import { useListVM } from '@/core/vm/vm.query'
+import { useListInstances } from '@/core/instance/instance.query'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
@@ -22,13 +22,15 @@ export function Sidebar() {
   const pathname = usePathname()
   const isMobile = useMobile()
   const [isOpen, setIsOpen] = useState(false)
-  const { data } = useListVM({
+  const { data } = useListInstances({
     page: 1,
     limit: 10,
   })
-  const vmsCount = data?.length || 0
+  const instances = data?.pages.flatMap(page => page.data) || []
+
+  const vmsCount = instances.length || 0
   const runningVmsCount
-    = data?.filter(vm => vm.status === 'running').length || 0
+    = instances.filter(vm => vm.status === 'running').length || 0
 
   const toggleSidebar = () => {
     setIsOpen(!isOpen)
@@ -60,7 +62,7 @@ export function Sidebar() {
         })}
       >
         <div className="p-6">
-          <h1 className="text-xl font-bold">VM Manager</h1>
+          <h1 className="text-xl font-bold">Wagecloud</h1>
         </div>
 
         <div className="px-3 py-2">
@@ -126,10 +128,10 @@ export function Sidebar() {
 
         <div className="mt-auto px-3 py-2">
           <div className="space-y-1">
-            <Button variant="ghost" className="w-full justify-start">
+            {/* <Button variant="ghost" className="w-full justify-start">
               <Activity className="mr-2 h-4 w-4" />
               Monitoring
-            </Button>
+            </Button> */}
             <Button variant="ghost" className="w-full justify-start">
               <Settings className="mr-2 h-4 w-4" />
               Settings
