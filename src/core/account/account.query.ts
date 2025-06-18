@@ -1,47 +1,56 @@
-import { Account } from './account.type'
-import { useMutation, useSuspenseQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { getQueryClient } from '../query-client'
 import {
-  createAccount,
-  deleteAccount,
-  getAccount,
-  getMe,
+  getUser,
+  loginUser,
   patchAccount,
+  patchUser,
+  registerUser,
 } from './account.api'
 
 const queryClient = getQueryClient()
 
-export const useSuspenseGetMe = () => useSuspenseQuery({
-  queryKey: ['account', 'me'],
-  queryFn: getMe,
-})
-
-export const useSuspenseGetAccount = (id: Account['id']) =>
-  useSuspenseQuery({
-    queryKey: ['account', id],
-    queryFn: () => getAccount(id),
-  })
-
-export const useCreateAccount = () =>
-  useMutation({
-    mutationFn: createAccount,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['account', 'list'] })
-    },
-  })
-
 export const usePatchAccount = () =>
   useMutation({
     mutationFn: patchAccount,
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['account', data.id] })
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['account', 'me'] })
     },
   })
 
-export const useDeleteAccount = () =>
+// TODO: suspense queries are kindof dangerous in productio, because they failed to build if the query fails.
+export const useSuspenseGetUser = () => useSuspenseQuery({
+  queryKey: ['account', 'me'],
+  queryFn: getUser,
+})
+
+export const useGetUser = () => useQuery({
+  queryKey: ['account', 'me'],
+  queryFn: getUser,
+})
+
+export const useLoginUser = () =>
   useMutation({
-    mutationFn: deleteAccount,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['account', 'list'] })
+    mutationFn: loginUser,
+    onSuccess: (data) => {
+      globalThis?.localStorage?.setItem?.('token', data.token)
+      queryClient.setQueryData(['account', 'me'], data.account)
+    },
+  })
+
+export const useRegisterUser = () =>
+  useMutation({
+    mutationFn: registerUser,
+    onSuccess: (data) => {
+      queryClient.setQueryData(['account', 'me'], data.account)
+    },
+  })
+
+export const usePatchUser = () =>
+  useMutation({
+    mutationFn: patchUser,
+    onSuccess: (data) => {
+      // queryClient.invalidateQueries({ queryKey: ['account', 'me'] })
+      queryClient.setQueryData(['account', 'me'], data)
     },
   })

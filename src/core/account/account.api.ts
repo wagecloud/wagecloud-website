@@ -1,34 +1,43 @@
 import { customFetchStandard } from '../custom-fetch'
 import {
   Account,
-  CreateAccountParams,
+  AccountUser,
+  LoginUserParams,
+  LoginUserResult,
   PatchAccountParams,
+  PatchUserParams,
+  RegisterUserParams,
+  RegisterUserResult,
 } from './account.type'
 
-export async function getMe() {
-  return customFetchStandard<Account>('me')
-}
-
-export async function getAccount(id: Account['id']) {
-  return customFetchStandard<Account>(`account/${id}`)
-}
-
-export async function createAccount(params: CreateAccountParams) {
-  return customFetchStandard<Account>(`account`, {
-    method: 'POST',
-    body: JSON.stringify(params),
-  })
-}
-
 export async function patchAccount(params: PatchAccountParams) {
-  return customFetchStandard<Account>(`account/${params.id}`, {
+  return customFetchStandard<Account>('account', {
     method: 'PATCH',
     body: JSON.stringify(params),
   })
 }
 
-export async function deleteAccount(id: Account['id']) {
-  return customFetchStandard<void>(`account/${id}`, {
-    method: 'DELETE',
+export async function getUser() {
+  return customFetchStandard<AccountUser>('account/user')
+}
+
+export async function loginUser(params: LoginUserParams) {
+  return customFetchStandard<LoginUserResult>('account/user/login', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  })
+}
+
+export async function registerUser(params: RegisterUserParams) {
+  return customFetchStandard<RegisterUserResult>('account/user/register', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  })
+}
+
+export async function patchUser(params: PatchUserParams) {
+  return customFetchStandard<AccountUser>('account/user', {
+    method: 'PATCH',
+    body: JSON.stringify(params),
   })
 }
