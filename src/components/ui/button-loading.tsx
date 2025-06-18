@@ -2,7 +2,7 @@ import { Button } from './button'
 import { Spinner } from './spinner'
 import { useEffect, useState } from 'react'
 
-export function ButtonLoading({ loading, onClick, children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+export function ButtonLoading({ loading, onClick, children, ...props }: Parameters<typeof Button>[0] & {
   loading?: boolean
 }) {
   const [localLoading, setLocalLoading] = useState(loading || false)
@@ -18,8 +18,12 @@ export function ButtonLoading({ loading, onClick, children, ...props }: React.Bu
       {...props}
       onClick={async (e) => {
         setLocalLoading(true)
-        await onClick?.(e)
-        setLocalLoading(false)
+        try {
+          await onClick?.(e)
+        }
+        finally {
+          setLocalLoading(false)
+        }
       }}
       disabled={localLoading || props.disabled}
     >
