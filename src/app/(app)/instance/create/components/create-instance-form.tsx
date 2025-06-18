@@ -11,7 +11,6 @@ import {
   CardContent,
   CardFooter,
   CardHeader,
-  CardTitle,
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -30,6 +29,8 @@ import { useInfiniteScroll } from '@/hooks/use-infinite-scroll'
 import { SearchableDropdownSelect } from '@/components/ui/searchable-dropdown-select'
 import { useCreateInstance } from '@/core/instance/instance.query'
 import { ButtonLoading } from '@/components/ui/button-loading'
+import { toast } from 'sonner'
+import { useListRegions } from '@/core/region/region.query'
 
 const STEPS = ['basic', 'resources', 'security'] as const
 type Step = (typeof STEPS)[number]
@@ -40,14 +41,21 @@ const formSchema = z.object({
     hostname: z.string().min(1, 'Hostname is required'),
     os_id: z.string().min(1, 'OS is required'),
     arch_id: z.string().min(1, 'Architecture is required'),
+    region_id: z.string().min(1, 'Region is required'),
   }),
   resources: z.object({
-    memory: z.number().min(512, 'Minimum memory is 512 MB').max(262144, 'Maximum memory is 262144 MB'),
+    memory: z
+      .number()
+      .min(512, 'Minimum memory is 512 MB')
+      .max(262144, 'Maximum memory is 262144 MB'),
     cpu: z.number().min(1, 'Minimum 1 CPU').max(64, 'Maximum 64 CPUs'),
     storage: z.number().min(10, 'Minimum 10 GB').max(2048, 'Maximum 2048 GB'),
   }),
   security: z.object({
-    'password': z.string().min(8, 'Password must be at least 8 characters').max(72, 'Password is too long'),
+    'password': z
+      .string()
+      .min(8, 'Password must be at least 8 characters')
+      .max(72, 'Password is too long'),
     'ssh-authorized-keys': z.array(z.string()),
   }),
 })
@@ -65,6 +73,7 @@ export function CreateInstanceForm() {
         hostname: '',
         os_id: '',
         arch_id: '',
+        region_id: '',
       },
       resources: {
         memory: 1024,
@@ -88,9 +97,18 @@ export function CreateInstanceForm() {
     limit: 5,
   })
 
+  const infiniteRegions = useListRegions({
+    page: 1,
+    limit: 5,
+  })
+
   const { ref: refTriggerOSs, items: oss } = useInfiniteScroll(infiniteOSs, 10)
   const { ref: refTriggerArchs, items: archs } = useInfiniteScroll(
     infiniteArchs,
+    10,
+  )
+  const { ref: refTriggerRegions, items: regions } = useInfiniteScroll(
+    infiniteRegions,
     10,
   )
 
@@ -110,8 +128,23 @@ export function CreateInstanceForm() {
       setCurrentStep(STEPS[currentIndex + 1])
     }
     else {
-      // If on the last step, submit the form
-      mutateCreateInstance(form.getValues())
+      try {
+        // If on the last step, submit the form
+        const result = await mutateCreateInstance(form.getValues())
+        // Show success toast
+        toast.success('You need to pay for the instance before it can be created.', {
+          description: 'Redirecting to payment page...',
+          duration: 3000,
+        })
+        // Redirect to payment page
+        window.location.href = result.payment_url
+      }
+      catch (error: any) {
+        console.error('Failed to create instance:', error)
+        toast.error('Failed to create item', {
+          description: 'Please try again later. ' + error.message,
+        })
+      }
     }
   }
 
@@ -125,7 +158,7 @@ export function CreateInstanceForm() {
   return (
     <Card className="mx-auto">
       <CardHeader>
-        <CardTitle>Create New Virtual Machine</CardTitle>
+        {/* <CardTitle>Create New Virtual Machine</CardTitle> */}
         <div className="flex items-center justify-between mt-4">
           {STEPS.map((step, index) => (
             <div key={step} className="flex items-center">
@@ -238,6 +271,33 @@ export function CreateInstanceForm() {
                   {form.formState.errors.basic?.arch_id && (
                     <p className="text-sm text-red-500">
                       {form.formState.errors.basic.arch_id.message}
+                    </p>
+                  )}
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="region">Region</Label>
+                  <Controller
+                    name="basic.region_id"
+                    control={form.control}
+                    render={({ field }) => (
+                      <SearchableDropdownSelect
+                        {...field}
+                        options={regions.map(region => ({
+                          id: region.id,
+                          label: region.name,
+                        }))}
+                        placeholder="Select Region..."
+                        infiniteRef={refTriggerRegions}
+                        hasNextPage={infiniteRegions.hasNextPage}
+                        onSelectionChange={(value) => {
+                          field.onChange(value[0])
+                        }}
+                      />
+                    )}
+                  />
+                  {form.formState.errors.basic?.region_id && (
+                    <p className="text-sm text-red-500">
+                      {form.formState.errors.basic.region_id.message}
                     </p>
                   )}
                 </div>
@@ -400,10 +460,7 @@ export function CreateInstanceForm() {
           >
             Previous
           </Button>
-          <ButtonLoading
-            type="button"
-            onClick={handleNext}
-          >
+          <ButtonLoading type="button" onClick={handleNext}>
             {currentStep === STEPS[STEPS.length - 1] ? 'Create' : 'Next'}
           </ButtonLoading>
         </CardFooter>
