@@ -5,7 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import React, { useState } from 'react'
 import { Menu, X } from 'lucide-react'
-import { useMobile } from '@/hooks/use-mobile'
+import { useIsMobile } from '@/hooks/use-mobile'
 
 interface NavLink {
   title: string
@@ -18,7 +18,7 @@ interface HeaderProps {
 
 export function Header({ navLinks }: Readonly<HeaderProps>) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const isMobile = useMobile()
+  const isMobile = useIsMobile()
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen)
