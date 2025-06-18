@@ -4,14 +4,15 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { LayoutDashboard, PlusCircle, Menu, X, Settings, HelpCircle, LogOut } from 'lucide-react'
-import { useMobile } from '@/hooks/use-mobile'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { useListInstances } from '@/core/instance/instance.query'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 
 export function Sidebar() {
+  const router = useRouter()
   const pathname = usePathname()
-  const isMobile = useMobile()
+  const isMobile = useIsMobile()
   const [isOpen, setIsOpen] = useState(false)
   const { data } = useListInstances({
     page: 1,
@@ -20,7 +21,6 @@ export function Sidebar() {
   const instances = data?.pages.flatMap(page => page.data) || []
 
   const vmsCount = instances.length || 0
-  const runningVmsCount = instances.filter(vm => vm.status === 'running').length || 0
 
   const toggleSidebar = () => {
     setIsOpen(!isOpen)
@@ -46,7 +46,7 @@ export function Sidebar() {
         className={cn('bg-background border-r flex flex-col h-screen z-40', {
           'fixed inset-y-0 left-0 transform transition-transform duration-200 ease-in-out w-64': isMobile,
           'translate-x-0': isMobile && isOpen,
-          'translate-x-full': isMobile && !isOpen,
+          '-translate-x-full': isMobile && !isOpen,
           'w-64': !isMobile,
         })}
       >
@@ -65,7 +65,7 @@ export function Sidebar() {
             <Link href="/create">
               <Button variant={currentView === 'create' ? 'secondary' : 'ghost'} className="w-full justify-start">
                 <PlusCircle className="mr-2 h-4 w-4" />
-                Create VM
+                Create Instance
               </Button>
             </Link>
           </div>
@@ -81,13 +81,15 @@ export function Sidebar() {
             <div className="flex justify-between items-center px-4 py-2 text-sm">
               <span>Running</span>
               <span className="bg-green-500/20 text-green-700 dark:text-green-400 rounded-full px-2 py-0.5 text-xs font-medium">
-                {runningVmsCount}
+                {/* {runningVmsCount} */}
+                0
               </span>
             </div>
             <div className="flex justify-between items-center px-4 py-2 text-sm">
               <span>Stopped</span>
               <span className="bg-red-500/20 text-red-700 dark:text-red-400 rounded-full px-2 py-0.5 text-xs font-medium">
-                {vmsCount - runningVmsCount}
+                {/* {vmsCount - runningVmsCount} */}
+                0
               </span>
             </div>
           </div>
@@ -111,7 +113,15 @@ export function Sidebar() {
         </div>
 
         <div className="p-4 border-t">
-          <Button variant="outline" className="w-full justify-start">
+          <Button
+            variant="outline"
+            className="w-full justify-start"
+            onClick={() => {
+              globalThis?.localStorage?.removeItem?.('token')
+              router.push('/login')
+              console.log('Logged out and redirected to login page')
+            }}
+          >
             <LogOut className="mr-2 h-4 w-4" />
             Logout
           </Button>
