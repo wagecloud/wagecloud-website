@@ -1,9 +1,11 @@
 import { PaginationParams } from '../response.type'
 
 export enum InstanceStatus {
-  RUNNING = 'running',
-  STOPPED = 'stopped',
-  RESTARTING = 'restarting',
+  UNKNOWN = 'STATUS_UNKNOWN',
+  PENDING = 'STATUS_PENDING',
+  RUNNING = 'STATUS_RUNNING',
+  STOPPED = 'STATUS_STOPPED',
+  ERROR = 'STATUS_ERROR',
 }
 
 export type Instance = {
@@ -11,13 +13,22 @@ export type Instance = {
   account_id: string
   os_id: string
   arch_id: string
+  region_id: string
   name: string
-  status: InstanceStatus
   cpu: number
   ram: number
   storage: number
   created_at: string
-  updated_at: string
+}
+
+export type InstanceMonitor = {
+  id: string
+  status: InstanceStatus
+  cpu_usage: number // in percentage (%)
+  ram_usage: number // in MB
+  storage_usage: number // in MB
+  network_in: number // in MB
+  network_out: number // in MB
 }
 
 export type ListInstancesParams = PaginationParams<Partial<Omit<Instance, 'created_at'> & {
@@ -42,4 +53,10 @@ export type CreateInstanceParams = {
     'ssh-authorized-keys': string[]
   }
 }
+
+export type CreateInstanceResult = {
+  id: Instance['id']
+  payment_url: string
+}
+
 export type PatchInstanceParams = Partial<Omit<Instance, 'created_at' | 'account_id'>>

@@ -1,8 +1,8 @@
 import { Instance, ListInstancesParams } from './instance.type'
-import { useInfiniteQuery, useMutation, useSuspenseQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { getQueryClient } from '../query-client'
 import { PaginationParams } from '../response.type'
-import { createInstance, deleteInstance, getInstance, listInstances, patchInstance, startInstance, stopInstance } from './instance.api'
+import { createInstance, deleteInstance, getInstance, getInstanceMonitor, listInstances, patchInstance, startInstance, stopInstance } from './instance.api'
 
 const queryClient = getQueryClient()
 
@@ -11,8 +11,21 @@ export const useSuspenseGetInstance = (id: Instance['id']) => useSuspenseQuery({
   queryFn: () => getInstance(id),
 })
 
+export const useSuspenseGetInstanceMonitor = (id: Instance['id']) => useSuspenseQuery({
+  queryKey: ['instance', id, 'monitor'],
+  queryFn: () => getInstanceMonitor(id),
+  refetchInterval: 3000,
+})
+
+export const useGetInstanceMonitor = (id: Instance['id']) => useQuery({
+  queryKey: ['instance', id, 'monitor'],
+  queryFn: () => getInstanceMonitor(id),
+  enabled: Boolean(id),
+  refetchInterval: 3000,
+})
+
 export const useListInstances = (params: PaginationParams<ListInstancesParams>) => useInfiniteQuery({
-  queryKey: ['instance', 'list', params],
+  queryKey: ['instance', 'list'],
   queryFn: ({ pageParam }) => listInstances(pageParam),
   getNextPageParam: (lastPageRes, _, lastPageParam) => {
     if (!lastPageRes.pagination.next_page && !lastPageRes.pagination.next_cursor) {
