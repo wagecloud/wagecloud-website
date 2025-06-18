@@ -1,20 +1,27 @@
 import { SuccessPaginationRes, SuccessResponse, TErrorResponse } from './response.type'
 
-const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/api'
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/api'
 
-const headers: HeadersInit = {
+const headers: Record<string, string> = {
   'Content-Type': 'application/json',
 }
 
-if (process.env.NODE_ENV === 'development') {
-  headers.Authorization = `Bearer ${process.env.NEXT_PUBLIC_TOKEN}`
+if (process.env.NODE_ENV === 'development' && globalThis?.localStorage && process.env.NEXT_PUBLIC_TOKEN?.length) {
+  console.warn(`Development mode: Using local storage token ${process.env.NEXT_PUBLIC_TOKEN}`)
+  globalThis?.localStorage?.setItem?.('token', process.env.NEXT_PUBLIC_TOKEN ?? '')
 }
 
-async function customFetch<TResponse = any>(
+export async function customFetch<TResponse = any>(
   url: string,
   options: RequestInit = {},
 ) {
-  const resolvedUrl = resolveUrl(baseUrl, url)
+  const token = globalThis?.localStorage?.getItem?.('token')
+  if (token?.length) {
+    headers.Authorization = `Bearer ${token}`
+    console.log('Using token from local storage:', token)
+  }
+
+  const resolvedUrl = resolveUrl(BASE_URL, url)
   const response = await fetch(resolvedUrl, {
     ...options,
     headers: {
@@ -23,12 +30,14 @@ async function customFetch<TResponse = any>(
     },
   })
 
-  if (!response.ok) {
-    const res = (await response.json()) as TErrorResponse
+  const data = await response.json()
+
+  if (!response.ok || data?.error?.code) {
+    const res = data as TErrorResponse
     throw new Error(res.error.message)
   }
 
-  return response.json() as Promise<TResponse>
+  return data as Promise<TResponse>
 }
 
 export async function customFetchStandard<Data = any>(
