@@ -12,6 +12,7 @@ export function useInfiniteScroll<Entity, TPageParams = unknown, TError = Error>
     TError
   >,
   maxEstimate?: number,
+  initialEstimate = 1,
 ) {
   const {
     data = {
@@ -38,7 +39,11 @@ export function useInfiniteScroll<Entity, TPageParams = unknown, TError = Error>
   )
 
   const estimate = React.useMemo(() => {
-    const lastPage = data.pages[data.pages.length - 1] ?? { pagination: {} }
+    if (!data.pages?.length) {
+      return initialEstimate ?? maxEstimate ?? 1
+    }
+
+    const lastPage = data.pages[data.pages.length - 1]
     const { total = currentAmount, limit = 10 } = lastPage.pagination
 
     const currentEstimate = maxEstimate ?? limit
