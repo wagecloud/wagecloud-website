@@ -12,7 +12,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { X } from 'lucide-react'
-import { useReadVM } from '@/core/instance/instance.query'
+// import { useReadVM } from '@/core/instance/instance.query'
 import { useAlert } from '../modal/alert/alert-modal-provider'
 
 interface SSHTerminalProps {
@@ -20,105 +20,105 @@ interface SSHTerminalProps {
   onClose: () => void
 }
 
-export function SSHTerminal({ vmId, onClose }: Readonly<SSHTerminalProps>) {
-  const { data: vm } = useReadVM(vmId)
-  const [isConnected, setIsConnected] = useState(false)
-  const terminalRef = useRef<HTMLDivElement>(null)
+// export function SSHTerminal({ vmId, onClose }: Readonly<SSHTerminalProps>) {
+//   // const { data: vm } = useReadVM(vmId)
+//   const [isConnected, setIsConnected] = useState(false)
+//   const terminalRef = useRef<HTMLDivElement>(null)
 
-  const { showAlert } = useAlert()
+//   const { showAlert } = useAlert()
 
-  useEffect(() => {
-    const ip = '192.168.1.1'
+//   useEffect(() => {
+//     const ip = '192.168.1.1'
 
-    showAlert({
-      title: 'Feature soon',
-      description: `Please connect to the VM via the SSH client\n ssh root@${ip}`,
-      type: 'warning',
-      primaryAction: {
-        label: 'Fine',
-        onClick: () => console.log('Success action clicked'),
-      },
-    })
+//     showAlert({
+//       title: 'Feature soon',
+//       description: `Please connect to the instance via the SSH client\n ssh root@${ip}`,
+//       type: 'warning',
+//       primaryAction: {
+//         label: 'Fine',
+//         onClick: () => console.log('Success action clicked'),
+//       },
+//     })
 
-    // Simulate SSH connection
-    const timer = setTimeout(() => {
-      setIsConnected(true)
-    }, 1000)
+//     // Simulate SSH connection
+//     const timer = setTimeout(() => {
+//       setIsConnected(true)
+//     }, 1000)
 
-    return () => clearTimeout(timer)
-  }, [])
+//     return () => clearTimeout(timer)
+//   }, [])
 
-  if (!vm) {
-    return <div>VM not found</div>
-  }
+//   if (!vm) {
+//     return <div>Instance not found</div>
+//   }
 
-  return (
-    <Card className="max-w-4xl mx-auto">
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>
-          SSH Terminal -
-          {vm.name}
-        </CardTitle>
-        <Button variant="outline" size="sm" onClick={onClose}>
-          <X className="h-4 w-4" />
-        </Button>
-      </CardHeader>
-      <CardContent>
-        <div
-          ref={terminalRef}
-          className="bg-black text-green-400 font-mono p-4 rounded-md h-[400px] overflow-y-auto"
-        >
-          {!isConnected
-            ? (
-                <div>
-                  Connecting to
-                  {vm.name}
-                  ...
-                </div>
-              )
-            : (
-                <div>
-                  <div>
-                    Connected to
-                    {vm.name}
-                  </div>
-                  <div>
-                    Operating System:
-                    {vm.os}
-                  </div>
-                  <div>
-                    CPU:
-                    {vm.cpu}
-                    {' '}
-                    cores
-                  </div>
-                  <div>
-                    RAM:
-                    {vm.ram}
-                    {' '}
-                    GB
-                  </div>
-                  <div>
-                    Storage:
-                    {vm.storage}
-                    {' '}
-                    GB
-                  </div>
-                  <div className="mt-4">$ _</div>
-                </div>
-              )}
-        </div>
-      </CardContent>
-      <CardFooter className="flex justify-between border-t p-6">
-        <div className="text-sm text-muted-foreground">
-          {isConnected
-            ? 'Connected to SSH terminal'
-            : 'Establishing SSH connection...'}
-        </div>
-        <Button variant="outline" onClick={onClose}>
-          Close Terminal
-        </Button>
-      </CardFooter>
-    </Card>
-  )
-}
+//   return (
+//     <Card className="max-w-4xl mx-auto">
+//       <CardHeader className="flex flex-row items-center justify-between">
+//         <CardTitle>
+//           SSH Terminal -
+//           {vm.name}
+//         </CardTitle>
+//         <Button variant="outline" size="sm" onClick={onClose}>
+//           <X className="h-4 w-4" />
+//         </Button>
+//       </CardHeader>
+//       <CardContent>
+//         <div
+//           ref={terminalRef}
+//           className="bg-black text-green-400 font-mono p-4 rounded-md h-[400px] overflow-y-auto"
+//         >
+//           {!isConnected
+//             ? (
+//                 <div>
+//                   Connecting to
+//                   {vm.name}
+//                   ...
+//                 </div>
+//               )
+//             : (
+//                 <div>
+//                   <div>
+//                     Connected to
+//                     {vm.name}
+//                   </div>
+//                   <div>
+//                     Operating System:
+//                     {vm.os}
+//                   </div>
+//                   <div>
+//                     CPU:
+//                     {vm.cpu}
+//                     {' '}
+//                     cores
+//                   </div>
+//                   <div>
+//                     RAM:
+//                     {vm.ram}
+//                     {' '}
+//                     GB
+//                   </div>
+//                   <div>
+//                     Storage:
+//                     {vm.storage}
+//                     {' '}
+//                     GB
+//                   </div>
+//                   <div className="mt-4">$ _</div>
+//                 </div>
+//               )}
+//         </div>
+//       </CardContent>
+//       <CardFooter className="flex justify-between border-t p-6">
+//         <div className="text-sm text-muted-foreground">
+//           {isConnected
+//             ? 'Connected to SSH terminal'
+//             : 'Establishing SSH connection...'}
+//         </div>
+//         <Button variant="outline" onClick={onClose}>
+//           Close Terminal
+//         </Button>
+//       </CardFooter>
+//     </Card>
+//   )
+// }
