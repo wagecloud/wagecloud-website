@@ -55,7 +55,7 @@ export default async function AppLayout({
           {/* <div className="flex flex-1 flex-col gap-4 p-4 pt-0">{children}</div> */}
           <main className="flex flex-row h-screen">
             <Toaster position="top-right" />
-            <div className="grow p-8">{children}</div>
+            <div className="grow p-8 bg-gray-50">{children}</div>
           </main>
         </SidebarInset>
       </SidebarProvider>
