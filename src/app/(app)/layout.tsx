@@ -12,7 +12,7 @@ export default async function AppLayout({
   // TODO: remove this once the app is ready
   await (new Promise((resolve) => {
     // Simulate some async operation, e.g., fetching initial data
-    setTimeout(resolve, 2000)
+    setTimeout(resolve, 1000)
   }))
 
   // TODO: ass code
