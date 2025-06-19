@@ -6,8 +6,10 @@ import {
   QueryClient,
 } from '@tanstack/react-query'
 
-function handleErrorQuery(_error: Error) {
-  console.error('Query Error:', _error)
+function handleErrorQuery(error: Error) {
+  if (error.message == 'Unauthorized') {
+    window.location.href = '/login'
+  }
 }
 
 function handleErrorMutation(_error: Error) {

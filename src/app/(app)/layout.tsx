@@ -15,15 +15,6 @@ export default async function AppLayout({
     setTimeout(resolve, 1000)
   }))
 
-  // TODO: ass code
-  if (typeof window !== 'undefined') {
-    const token = globalThis?.localStorage?.getItem?.('token')
-
-    if (!token?.length) {
-      window.location.href = '/login'
-    }
-  }
-
   // const queryClient = getQueryClient()
 
   // look ma, no await
